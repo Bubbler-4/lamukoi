@@ -19,26 +19,40 @@ pub enum AnonExpr {
 }
 
 impl AnonExpr {
-    pub fn from_expr(expr: Expr, name2id: &mut HashMap<String, AnonExpr>) -> Result<Self> {
+    fn from_expr_inner(expr: Expr, name2id: &HashMap<String, Self>, index: &mut Vec<String>) -> Result<Self> {
         match expr {
             Expr::Id(ident) => {
+                if let Some(pos) = index.iter().rev().position(|x| x == &ident) {
+                    return Ok(Self::DeBruijn(pos));
+                }
                 let Some(e) = name2id.get(&ident) else {
                     return Err(Error::UndefinedIdent(ident));
                 };
                 Ok(e.clone())
             }
             Expr::Int(int) => {
-                Ok(AnonExpr::Int(int))
+                Ok(Self::Int(int))
             }
             Expr::App(e1, e2) => {
-                let e1 = AnonExpr::from_expr(*e1, name2id)?;
-                let e2 = AnonExpr::from_expr(*e2, name2id)?;
-                Ok(AnonExpr::App(Box::new(e1), Box::new(e2)))
+                let e1 = Self::from_expr_inner(*e1, name2id, index)?;
+                let e2 = Self::from_expr_inner(*e2, name2id, index)?;
+                Ok(Self::App(Box::new(e1), Box::new(e2)))
             }
             Expr::Lam(idents, e) => {
-                todo!()
+                let prev_index_len = index.len();
+                let idents_len = idents.len();
+                index.extend(idents);
+                let mut e = Self::from_expr_inner(*e, name2id, index)?;
+                index.truncate(prev_index_len);
+                for _ in 0..idents_len {
+                    e = Self::Lam(Box::new(e));
+                }
+                Ok(e)
             }
         }
+    }
+    pub fn from_expr(expr: Expr, name2id: &HashMap<String, Self>) -> Result<Self> {
+        Self::from_expr_inner(expr, name2id, &mut vec![])
     }
 }
 

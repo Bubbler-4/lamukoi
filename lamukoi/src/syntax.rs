@@ -20,6 +20,7 @@ pub struct Program {
     pub defs: Vec<Def>,
 }
 
+#[macro_export]
 macro_rules! expr {
     (| $($params: ident)+ | $($tail: tt)+ ) => {
         Expr::Lam(vec![$(stringify!($params).to_string()),+], Box::new(expr!($($tail)+)))
@@ -41,6 +42,7 @@ macro_rules! expr {
     };
 }
 
+#[macro_export]
 macro_rules! lambda {
     ($id: ident $($params: ident)* = $($expr: tt)+) => {
         Def {

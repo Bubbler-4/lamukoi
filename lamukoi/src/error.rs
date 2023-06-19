@@ -1,6 +1,7 @@
 use crate::syntax::Ident;
 
 #[non_exhaustive]
+#[derive(Debug)]
 pub enum Error {
     TopLevelNameCollision(Ident),
     ScParamNameCollision(Ident, Ident),
