@@ -1,4 +1,4 @@
-use crate::syntax::*;
+use crate::structures::*;
 
 enum LiftedExpr {
     Sc(usize),

@@ -4,26 +4,17 @@
 // lambda-local vars become de Bruijn indexes
 // lambdas become single-layered
 
-use crate::syntax::*;
+use crate::structures::*;
 use crate::error::{Error, Result};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
-pub enum AnonExpr {
-    DefId(usize),
-    ArgId(usize),
-    DeBruijn(usize),
-    Int(i64),
-    App(Box<Self>, Box<Self>),
-    Lam(Box<Self>),
-}
-
-impl AnonExpr {
-    fn from_expr_inner(expr: Expr, name2id: &HashMap<String, Self>, index: &mut Vec<String>) -> Result<Self> {
+impl Expr {
+    fn into_anon_inner(self, name2id: &HashMap<String, AnonExpr>, index: &mut Vec<String>) -> Result<AnonExpr> {
+        let expr = self;
         match expr {
             Expr::Id(ident) => {
                 if let Some(pos) = index.iter().rev().position(|x| x == &ident) {
-                    return Ok(Self::DeBruijn(pos));
+                    return Ok(AnonExpr::DeBruijn(pos));
                 }
                 let Some(e) = name2id.get(&ident) else {
                     return Err(Error::UndefinedIdent(ident));
@@ -31,40 +22,35 @@ impl AnonExpr {
                 Ok(e.clone())
             }
             Expr::Int(int) => {
-                Ok(Self::Int(int))
+                Ok(AnonExpr::Int(int))
             }
             Expr::App(e1, e2) => {
-                let e1 = Self::from_expr_inner(*e1, name2id, index)?;
-                let e2 = Self::from_expr_inner(*e2, name2id, index)?;
-                Ok(Self::App(Box::new(e1), Box::new(e2)))
+                let e1 = e1.into_anon_inner(name2id, index)?;
+                let e2 = e2.into_anon_inner(name2id, index)?;
+                Ok(AnonExpr::App(Box::new(e1), Box::new(e2)))
             }
             Expr::Lam(idents, e) => {
                 let prev_index_len = index.len();
                 let idents_len = idents.len();
                 index.extend(idents);
-                let mut e = Self::from_expr_inner(*e, name2id, index)?;
+                let mut e = e.into_anon_inner(name2id, index)?;
                 index.truncate(prev_index_len);
                 for _ in 0..idents_len {
-                    e = Self::Lam(Box::new(e));
+                    e = AnonExpr::Lam(Box::new(e));
                 }
                 Ok(e)
             }
         }
     }
-    pub fn from_expr(expr: Expr, name2id: &HashMap<String, Self>) -> Result<Self> {
-        Self::from_expr_inner(expr, name2id, &mut vec![])
+    pub fn into_anon(self, name2id: &HashMap<String, AnonExpr>) -> Result<AnonExpr> {
+        let expr = self;
+        expr.into_anon_inner(name2id, &mut vec![])
     }
 }
 
-#[derive(Debug)]
-pub struct AnonDef {
-    pub name: Ident,
-    pub params: usize,
-    pub body: Option<AnonExpr>,
-}
-
-impl AnonDef {
-    pub fn from_def(def: Def, name2id: &mut HashMap<String, AnonExpr>) -> Result<Self> {
+impl Def {
+    pub fn into_anon(self, name2id: &mut HashMap<String, AnonExpr>) -> Result<AnonDef> {
+        let def = self;
         let Def { name, params, body } = def;
         let Some(body) = body else {
             // Primitive
@@ -81,21 +67,17 @@ impl AnonDef {
                 to_restore.push((param, prev_expr));
             }
         }
-        let body = AnonExpr::from_expr(body, name2id)?;
+        let body = body.into_anon(name2id)?;
         for (k, v) in to_restore {
             name2id.insert(k, v);
         }
-        Ok(Self { name, params: params_len, body: Some(body) })
+        Ok(AnonDef { name, params: params_len, body: Some(body) })
     }
 }
 
-#[derive(Debug)]
-pub struct AnonProgram {
-    pub defs: Vec<AnonDef>,
-}
-
-impl AnonProgram {
-    pub fn from_program(program: Program) -> Result<Self> {
+impl Program {
+    pub fn into_anon(self) -> Result<AnonProgram> {
+        let program = self;
         let mut name2id = HashMap::new();
         for (id, def) in program.defs.iter().enumerate() {
             let current_name = def.name.clone();
@@ -106,8 +88,8 @@ impl AnonProgram {
         }
         let mut anon_defs = vec![];
         for def in program.defs {
-            anon_defs.push(AnonDef::from_def(def, &mut name2id)?);
+            anon_defs.push(def.into_anon(&mut name2id)?);
         }
-        Ok(Self { defs: anon_defs })
+        Ok(AnonProgram { defs: anon_defs })
     }
 }

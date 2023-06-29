@@ -1,4 +1,4 @@
-use crate::syntax::Ident;
+use crate::structures::Ident;
 
 #[non_exhaustive]
 #[derive(Debug)]

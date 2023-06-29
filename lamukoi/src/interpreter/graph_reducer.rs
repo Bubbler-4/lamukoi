@@ -1,4 +1,4 @@
-use crate::syntax::*;
+use crate::structures::*;
 use slotmap::SlotMap;
 
 // interpret: stack, heap, sc, prim
