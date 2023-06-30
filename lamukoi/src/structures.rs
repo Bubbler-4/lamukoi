@@ -14,12 +14,12 @@ impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expr::App(e1, e2) => {
-                if matches!(&**e1, Expr::Lam(_,_)) {
+                if matches!(&**e1, Expr::Lam(_, _)) {
                     write!(f, "({}) ", e1)?;
                 } else {
                     write!(f, "{} ", e1)?;
                 }
-                if matches!(&**e2, Expr::App(_,_) | Expr::Lam(_,_)) {
+                if matches!(&**e2, Expr::App(_, _) | Expr::Lam(_, _)) {
                     write!(f, "({})", e2)?;
                 } else {
                     write!(f, "{}", e2)?;
@@ -90,7 +90,12 @@ pub enum AnonExpr {
 }
 
 impl AnonExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, root: &AnonProgram, depth: usize) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        root: &AnonProgram,
+        depth: usize,
+    ) -> std::fmt::Result {
         match self {
             AnonExpr::DefId(i) => {
                 let name = &root.defs[*i].name;
@@ -114,7 +119,7 @@ impl AnonExpr {
                     e1.fmt(f, root, depth)?;
                     write!(f, " ")?;
                 }
-                if matches!(&**e2, AnonExpr::App(_,_) | AnonExpr::Lam(_)) {
+                if matches!(&**e2, AnonExpr::App(_, _) | AnonExpr::Lam(_)) {
                     write!(f, "(")?;
                     e2.fmt(f, root, depth)?;
                     write!(f, ")")?;
@@ -131,9 +136,24 @@ impl AnonExpr {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum Name {
+    Named(String),
+    Unnamed(usize),
+}
+
+impl Display for Name {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Name::Named(s) => write!(f, "{}", s),
+            Name::Unnamed(i) => write!(f, "?{}", i),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct AnonDef {
-    pub name: Ident,
+    pub name: Name,
     pub params: usize,
     pub body: Option<AnonExpr>,
 }
@@ -160,6 +180,89 @@ pub struct AnonProgram {
 }
 
 impl Display for AnonProgram {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if !self.defs.is_empty() {
+            self.defs[0].fmt(f, self)?;
+            for def in &self.defs[1..] {
+                write!(f, "\n")?;
+                def.fmt(f, self)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ScExpr {
+    DefId(usize),
+    ArgId(usize),
+    Int(i64),
+    App(Box<Self>, Box<Self>),
+}
+
+impl ScExpr {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        root: &ScProgram,
+        depth: usize,
+    ) -> std::fmt::Result {
+        match self {
+            ScExpr::DefId(i) => {
+                let name = &root.defs[*i].name;
+                write!(f, "{}", name)?;
+            }
+            ScExpr::ArgId(i) => {
+                write!(f, "x{}", i)?;
+            }
+            ScExpr::Int(i) => {
+                write!(f, "i{}", i)?;
+            }
+            ScExpr::App(e1, e2) => {
+                e1.fmt(f, root, depth)?;
+                write!(f, " ")?;
+                if matches!(&**e2, ScExpr::App(_, _)) {
+                    write!(f, "(")?;
+                    e2.fmt(f, root, depth)?;
+                    write!(f, ")")?;
+                } else {
+                    e2.fmt(f, root, depth)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct ScDef {
+    pub name: Name,
+    pub params: usize,
+    pub body: Option<ScExpr>,
+}
+
+impl ScDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, root: &ScProgram) -> std::fmt::Result {
+        write!(f, "{}", self.name)?;
+        for i in 0..self.params {
+            write!(f, " x{}", i)?;
+        }
+        write!(f, " = ")?;
+        if let Some(body) = &self.body {
+            body.fmt(f, root, 0)?;
+        } else {
+            write!(f, "<builtin>")?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct ScProgram {
+    pub defs: Vec<ScDef>,
+}
+
+impl Display for ScProgram {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if !self.defs.is_empty() {
             self.defs[0].fmt(f, self)?;

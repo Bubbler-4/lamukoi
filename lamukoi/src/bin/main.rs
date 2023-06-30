@@ -1,5 +1,5 @@
-use lamukoi::*;
 use lamukoi::structures::*;
+use lamukoi::*;
 
 fn main() {
     let prog = program![
@@ -10,13 +10,15 @@ fn main() {
         rangesum = |n| snd (n update (pair (|x| x) (|x y| y)));
         main = (|f x| f (f x)) rangesum;
     ];
-    println!("Original:");
     println!("{}", prog);
-    let prog2 = prog.into_anon().unwrap();
-    println!("After anonymization:");
-    println!("{}", prog2);
-    let prog3 = prog2.lambda_lift();
-    println!("After lambda lifting:");
-    println!("{:?}", prog3);
-    println!("{}", prog3);
+    println!();
+
+    let processed = prog
+        .into_anon()
+        .unwrap()
+        .lambda_lift()
+        .lambda_elim()
+        .unwrap()
+        .compress();
+    println!("{}", processed);
 }

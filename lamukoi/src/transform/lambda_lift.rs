@@ -37,10 +37,9 @@ impl MfeExpr {
             MfeExpr::DeBruijn(i) => AnonExpr::DeBruijn(i),
             MfeExpr::MfeId(i) => AnonExpr::ArgId(i), // args of new sc
             MfeExpr::Int(i) => AnonExpr::Int(i),
-            MfeExpr::App(e1, e2) => AnonExpr::App(
-                Box::new(e1.into_anon()),
-                Box::new(e2.into_anon())
-            ),
+            MfeExpr::App(e1, e2) => {
+                AnonExpr::App(Box::new(e1.into_anon()), Box::new(e2.into_anon()))
+            }
         }
     }
 }
@@ -91,7 +90,11 @@ impl AnonExpr {
                 let mut mfes = vec![];
                 let (e, _) = e.extract_mfe(&mut mfes);
                 let cur_def_id = next_def_id + defs.len();
-                defs.push(AnonDef { name: format!("?{}", cur_def_id), params: mfes.len(), body: Some(AnonExpr::Lam(Box::new(e.into_anon()))) });
+                defs.push(AnonDef {
+                    name: Name::Unnamed(cur_def_id),
+                    params: mfes.len(),
+                    body: Some(AnonExpr::Lam(Box::new(e.into_anon()))),
+                });
                 let mut new_e = AnonExpr::DefId(cur_def_id);
                 for mfe in mfes {
                     new_e = AnonExpr::App(Box::new(new_e), Box::new(mfe));
@@ -118,37 +121,55 @@ impl AnonExpr {
             AnonExpr::Int(i) => (MfeExpr::Int(i), VarState::NoVar),
             AnonExpr::ArgId(i) => (MfeExpr::ArgId(i), VarState::Free),
             AnonExpr::DeBruijn(i) => {
-                let state = if i == 0 { VarState::Bound } else { VarState::Free };
+                let state = if i == 0 {
+                    VarState::Bound
+                } else {
+                    VarState::Free
+                };
                 (MfeExpr::DeBruijn(i), state)
             }
             AnonExpr::App(e1, e2) => {
                 let (e1, state1) = e1.extract_mfe(args);
                 let (e2, state2) = e2.extract_mfe(args);
                 match (state1, state2) {
-                    (VarState::NoVar, VarState::NoVar) => (MfeExpr::App(Box::new(e1), Box::new(e2)), VarState::NoVar),
-                    (VarState::NoVar, VarState::Free) |
-                    (VarState::Free, VarState::NoVar) |
-                    (VarState::Free, VarState::Free) => (MfeExpr::App(Box::new(e1), Box::new(e2)), VarState::Free),
-                    (VarState::NoVar, VarState::Bound) |
-                    (VarState::Bound, VarState::NoVar) |
-                    (VarState::Bound, VarState::Bound) => (MfeExpr::App(Box::new(e1), Box::new(e2)), VarState::Bound),
+                    (VarState::NoVar, VarState::NoVar) => {
+                        (MfeExpr::App(Box::new(e1), Box::new(e2)), VarState::NoVar)
+                    }
+                    (VarState::NoVar, VarState::Free)
+                    | (VarState::Free, VarState::NoVar)
+                    | (VarState::Free, VarState::Free) => {
+                        (MfeExpr::App(Box::new(e1), Box::new(e2)), VarState::Free)
+                    }
+                    (VarState::NoVar, VarState::Bound)
+                    | (VarState::Bound, VarState::NoVar)
+                    | (VarState::Bound, VarState::Bound) => {
+                        (MfeExpr::App(Box::new(e1), Box::new(e2)), VarState::Bound)
+                    }
                     (VarState::Free, VarState::Bound) => {
                         let new_e1 = MfeExpr::MfeId(args.len());
                         let mut e1 = e1;
                         e1.weaken();
                         args.push(e1.into_anon());
-                        (MfeExpr::App(Box::new(new_e1), Box::new(e2)), VarState::Bound)
+                        (
+                            MfeExpr::App(Box::new(new_e1), Box::new(e2)),
+                            VarState::Bound,
+                        )
                     }
                     (VarState::Bound, VarState::Free) => {
                         let new_e2 = MfeExpr::MfeId(args.len());
                         let mut e2 = e2;
                         e2.weaken();
                         args.push(e2.into_anon());
-                        (MfeExpr::App(Box::new(e1), Box::new(new_e2)), VarState::Bound)
+                        (
+                            MfeExpr::App(Box::new(e1), Box::new(new_e2)),
+                            VarState::Bound,
+                        )
                     }
                 }
             }
-            AnonExpr::Lam(_) => unreachable!("extract_mfe should only get passed lambda-free expressions"),
+            AnonExpr::Lam(_) => {
+                unreachable!("extract_mfe should only get passed lambda-free expressions")
+            }
         }
     }
 }
@@ -162,7 +183,14 @@ impl AnonDef {
             return (AnonDef { name, params, body: None }, vec![]);
         };
         let (body, defs) = body.lambda_lift(next_def_id);
-        (AnonDef { name, params, body: Some(body) }, defs)
+        (
+            AnonDef {
+                name,
+                params,
+                body: Some(body),
+            },
+            defs,
+        )
     }
 }
 

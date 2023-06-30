@@ -4,12 +4,16 @@
 // lambda-local vars become de Bruijn indexes
 // lambdas become single-layered
 
-use crate::structures::*;
 use crate::error::{Error, Result};
+use crate::structures::*;
 use std::collections::HashMap;
 
 impl Expr {
-    fn into_anon_inner(self, name2id: &HashMap<String, AnonExpr>, index: &mut Vec<String>) -> Result<AnonExpr> {
+    fn into_anon_inner(
+        self,
+        name2id: &HashMap<String, AnonExpr>,
+        index: &mut Vec<String>,
+    ) -> Result<AnonExpr> {
         let expr = self;
         match expr {
             Expr::Id(ident) => {
@@ -17,13 +21,11 @@ impl Expr {
                     return Ok(AnonExpr::DeBruijn(pos));
                 }
                 let Some(e) = name2id.get(&ident) else {
-                    return Err(Error::UndefinedIdent(ident));
+                    return Err(Error::UndefinedIdent { def_name: String::default(), undefined_name: ident });
                 };
                 Ok(e.clone())
             }
-            Expr::Int(int) => {
-                Ok(AnonExpr::Int(int))
-            }
+            Expr::Int(int) => Ok(AnonExpr::Int(int)),
             Expr::App(e1, e2) => {
                 let e1 = e1.into_anon_inner(name2id, index)?;
                 let e2 = e2.into_anon_inner(name2id, index)?;
@@ -54,7 +56,7 @@ impl Def {
         let Def { name, params, body } = def;
         let Some(body) = body else {
             // Primitive
-            return Ok(AnonDef { name, params: params.len(), body: None });
+            return Ok(AnonDef { name: Name::Named(name), params: params.len(), body: None });
         };
         let params_len = params.len();
         let mut to_restore = vec![];
@@ -62,16 +64,35 @@ impl Def {
             let prev_expr = name2id.insert(param.clone(), AnonExpr::ArgId(id));
             if let Some(prev_expr) = prev_expr {
                 if let AnonExpr::ArgId(_) = prev_expr {
-                    return Err(Error::ScParamNameCollision(name, param));
+                    return Err(Error::ScParamNameCollision {
+                        def_name: name,
+                        param_name: param,
+                    });
                 }
                 to_restore.push((param, prev_expr));
             }
         }
-        let body = body.into_anon(name2id)?;
+        let body = body.into_anon(name2id);
+        let body = match body {
+            Ok(body) => body,
+            Err(Error::UndefinedIdent { undefined_name, .. }) => {
+                return Err(Error::UndefinedIdent {
+                    def_name: name,
+                    undefined_name,
+                });
+            }
+            Err(error) => {
+                return Err(error);
+            }
+        };
         for (k, v) in to_restore {
             name2id.insert(k, v);
         }
-        Ok(AnonDef { name, params: params_len, body: Some(body) })
+        Ok(AnonDef {
+            name: Name::Named(name),
+            params: params_len,
+            body: Some(body),
+        })
     }
 }
 
@@ -82,7 +103,7 @@ impl Program {
         for (id, def) in program.defs.iter().enumerate() {
             let current_name = def.name.clone();
             if name2id.contains_key(&current_name) {
-                return Err(Error::TopLevelNameCollision(current_name));
+                return Err(Error::TopLevelNameCollision { name: current_name });
             }
             name2id.insert(current_name, AnonExpr::DefId(id));
         }
