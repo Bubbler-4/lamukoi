@@ -5,7 +5,7 @@ pub type Ident = String;
 #[derive(Debug)]
 pub enum Expr {
     Id(Ident),
-    Int(i64),
+    Prim(i64),
     App(Box<Self>, Box<Self>),
     Lam(Vec<Ident>, Box<Self>),
 }
@@ -26,7 +26,7 @@ impl Display for Expr {
                 }
             }
             Expr::Id(ident) => write!(f, "{}", ident)?,
-            Expr::Int(i) => write!(f, "{}", i)?,
+            Expr::Prim(i) => write!(f, "{}", i)?,
             Expr::Lam(idents, e) => {
                 write!(f, "λ{}", idents[0])?;
                 for ident in &idents[1..] {
@@ -84,7 +84,7 @@ pub enum AnonExpr {
     DefId(usize),
     ArgId(usize),
     DeBruijn(usize),
-    Int(i64),
+    Prim(i64),
     App(Box<Self>, Box<Self>),
     Lam(Box<Self>),
 }
@@ -107,7 +107,7 @@ impl AnonExpr {
             AnonExpr::DeBruijn(i) => {
                 write!(f, "v{}", depth - 1 - i)?;
             }
-            AnonExpr::Int(i) => {
+            AnonExpr::Prim(i) => {
                 write!(f, "i{}", i)?;
             }
             AnonExpr::App(e1, e2) => {
@@ -196,7 +196,7 @@ impl Display for AnonProgram {
 pub enum ScExpr {
     DefId(usize),
     ArgId(usize),
-    Int(i64),
+    Prim(i64),
     App(Box<Self>, Box<Self>),
 }
 
@@ -215,7 +215,7 @@ impl ScExpr {
             ScExpr::ArgId(i) => {
                 write!(f, "x{}", i)?;
             }
-            ScExpr::Int(i) => {
+            ScExpr::Prim(i) => {
                 write!(f, "i{}", i)?;
             }
             ScExpr::App(e1, e2) => {
@@ -290,7 +290,7 @@ macro_rules! expr {
         Expr::App(Box::new(expr!($tok1)), Box::new(expr!($tok2)))
     };
     ($num: literal) => {
-        Expr::Int($num)
+        Expr::Prim($num)
     };
     ($id: tt) => {
         Expr::Id(stringify!($id).to_string())

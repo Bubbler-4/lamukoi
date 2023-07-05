@@ -25,7 +25,7 @@ impl Expr {
                 };
                 Ok(e.clone())
             }
-            Expr::Int(int) => Ok(AnonExpr::Int(int)),
+            Expr::Prim(int) => Ok(AnonExpr::Prim(int)),
             Expr::App(e1, e2) => {
                 let e1 = e1.into_anon_inner(name2id, index)?;
                 let e2 = e2.into_anon_inner(name2id, index)?;

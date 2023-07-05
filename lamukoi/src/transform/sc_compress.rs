@@ -9,7 +9,7 @@ use std::collections::HashMap;
 impl ScExpr {
     fn renumber(&mut self, table: &[usize]) {
         match self {
-            ScExpr::Int(_) => {}
+            ScExpr::Prim(_) => {}
             ScExpr::ArgId(_) => {}
             ScExpr::App(e1, e2) => {
                 e1.renumber(table);

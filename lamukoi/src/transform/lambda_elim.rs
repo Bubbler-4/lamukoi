@@ -21,7 +21,7 @@ impl AnonExpr {
         match self {
             AnonExpr::DefId(i) => Ok(ScExpr::DefId(i)),
             AnonExpr::ArgId(i) => Ok(ScExpr::ArgId(i)),
-            AnonExpr::Int(i) => Ok(ScExpr::Int(i)),
+            AnonExpr::Prim(i) => Ok(ScExpr::Prim(i)),
             AnonExpr::DeBruijn(i) => Ok(ScExpr::ArgId(args + lambdas - 1 - i)),
             AnonExpr::App(e1, e2) => {
                 let e1 = e1.try_into_scexpr(args, lambdas)?;

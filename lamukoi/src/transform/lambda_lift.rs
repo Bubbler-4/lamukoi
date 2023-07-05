@@ -36,7 +36,7 @@ impl MfeExpr {
             MfeExpr::ArgId(i) => AnonExpr::ArgId(i), // parent args
             MfeExpr::DeBruijn(i) => AnonExpr::DeBruijn(i),
             MfeExpr::MfeId(i) => AnonExpr::ArgId(i), // args of new sc
-            MfeExpr::Int(i) => AnonExpr::Int(i),
+            MfeExpr::Int(i) => AnonExpr::Prim(i),
             MfeExpr::App(e1, e2) => {
                 AnonExpr::App(Box::new(e1.into_anon()), Box::new(e2.into_anon()))
             }
@@ -78,7 +78,7 @@ impl AnonExpr {
             AnonExpr::DefId(i) => (AnonExpr::DefId(i), vec![]),
             AnonExpr::ArgId(i) => (AnonExpr::ArgId(i), vec![]),
             AnonExpr::DeBruijn(i) => (AnonExpr::DeBruijn(i), vec![]),
-            AnonExpr::Int(i) => (AnonExpr::Int(i), vec![]),
+            AnonExpr::Prim(i) => (AnonExpr::Prim(i), vec![]),
             AnonExpr::App(e1, e2) => {
                 let (e1, mut defs1) = e1.lambda_lift(next_def_id);
                 let (e2, defs2) = e2.lambda_lift(next_def_id + defs1.len());
@@ -118,7 +118,7 @@ impl AnonExpr {
     fn extract_mfe(self, args: &mut Vec<AnonExpr>) -> (MfeExpr, VarState) {
         match self {
             AnonExpr::DefId(i) => (MfeExpr::DefId(i), VarState::NoVar),
-            AnonExpr::Int(i) => (MfeExpr::Int(i), VarState::NoVar),
+            AnonExpr::Prim(i) => (MfeExpr::Int(i), VarState::NoVar),
             AnonExpr::ArgId(i) => (MfeExpr::ArgId(i), VarState::Free),
             AnonExpr::DeBruijn(i) => {
                 let state = if i == 0 {
