@@ -275,6 +275,29 @@ impl Display for ScProgram {
     }
 }
 
+#[derive(Clone)]
+pub enum Atom {
+    Sc(usize),
+    Prim(i64),
+}
+
+pub type Primop = Box<dyn FnMut(&[i64]) -> Option<Atom>>;
+
+pub enum ScBody {
+    Body(ScExpr),
+    Prim(Primop),
+}
+
+pub struct ScPrimDef {
+    pub name: Name,
+    pub params: usize,
+    pub body: ScBody,
+}
+
+pub struct ScPrimProgram {
+    pub defs: Vec<ScPrimDef>,
+}
+
 #[macro_export]
 macro_rules! expr {
     (| $($params: ident)+ | $($tail: tt)+ ) => {

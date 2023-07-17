@@ -1,5 +1,5 @@
-use crate::structures::*;
-use slotmap::SlotMap;
+// use crate::structures::*;
+// use slotmap::SlotMap;
 
 // interpret: stack, heap, sc, prim
 // inputs:
