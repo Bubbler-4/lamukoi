@@ -301,6 +301,9 @@ pub struct ScPrimProgram<'a> {
 
 #[macro_export]
 macro_rules! expr {
+    (λ $($params: ident)+ . $($tail: tt)+ ) => {
+        Expr::Lam(vec![$(stringify!($params).to_string()),+], Box::new(expr!($($tail)+)))
+    };
     (| $($params: ident)+ | $($tail: tt)+ ) => {
         Expr::Lam(vec![$(stringify!($params).to_string()),+], Box::new(expr!($($tail)+)))
     };
@@ -361,11 +364,26 @@ mod tests {
 
     #[test]
     fn macro_compiles() {
-        let _result = program![
+        let _ = program![
             #mul x y;
             square x = mul x x;
             square2 = (|x| mul x x);
+            square3 = (λ x. mul x x);
             main = square (square2 3);
+        ];
+        let _ = program![
+            pair = |x y f| f x y;
+            snd = |p| p (|x y| y);
+            update = |p| p (|x y f| f (succ x) (x succ y));
+            rangesum = |n| snd (n update (pair (|x| x) (|x y| y)));
+            main = (|f x| f (f x)) rangesum;
+        ];
+        let _ = program![
+            pair = λ x y f. f x y;
+            snd = λ p. p (λ x y. y);
+            update = λ p. p (λ x y f. f (succ x) (x succ y));
+            rangesum = λ n. snd (n update (pair (λ x. x) (λ x y. y)));
+            main = (λ f x. f (f x)) rangesum;
         ];
     }
 }
