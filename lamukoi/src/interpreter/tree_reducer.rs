@@ -14,6 +14,13 @@ pub struct Node {
 }
 
 impl Node {
+    pub fn from_sc(sc: usize) -> Self {
+        Self {
+            head: Atom::Sc(sc),
+            stack: VecDeque::new(),
+        }
+    }
+
     fn substitute(expr: &ScExpr, args: &[Node]) -> Self {
         let mut node = Node { head: Atom::Prim(0), stack: VecDeque::new() };
         node.substitute_into(expr, args);
@@ -44,7 +51,7 @@ impl Node {
     }
 }
 
-impl ScPrimProgram {
+impl<'a> ScPrimProgram<'a> {
     pub fn reduce_to_nf(&mut self, root: &mut Node) -> Result<()> {
         self.reduce_to_whnf(root)?;
         for child in &mut root.stack {
@@ -112,6 +119,7 @@ impl ScPrimProgram {
                 }
             }
             Atom::Prim(_) => Ok(false),
+            Atom::IoRes(_) => unimplemented!(),
         }
     }
 
@@ -119,6 +127,7 @@ impl ScPrimProgram {
         let head = match node.head {
             Atom::Sc(i) => self.defs[i].name.to_string(),
             Atom::Prim(i) => i.to_string(),
+            Atom::IoRes(i) => format!("IORes({})", i),
         };
         let body = " (..)".repeat(node.stack.len());
         format!("{}{}", head, body)

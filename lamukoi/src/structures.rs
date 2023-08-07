@@ -279,23 +279,24 @@ impl Display for ScProgram {
 pub enum Atom {
     Sc(usize),
     Prim(i64),
+    IoRes(i64),
 }
 
-pub type Primop = Box<dyn FnMut(&[i64]) -> Option<Atom>>;
+pub type Primop<'a> = Box<dyn FnMut(&[i64]) -> Option<Atom> + 'a>;
 
-pub enum ScBody {
+pub enum ScBody<'a> {
     Body(ScExpr),
-    Prim(Primop),
+    Prim(Primop<'a>),
 }
 
-pub struct ScPrimDef {
+pub struct ScPrimDef<'a> {
     pub name: Name,
     pub params: usize,
-    pub body: ScBody,
+    pub body: ScBody<'a>,
 }
 
-pub struct ScPrimProgram {
-    pub defs: Vec<ScPrimDef>,
+pub struct ScPrimProgram<'a> {
+    pub defs: Vec<ScPrimDef<'a>>,
 }
 
 #[macro_export]
