@@ -60,6 +60,7 @@ impl Def {
         };
         let params_len = params.len();
         let mut to_restore = vec![];
+        let mut to_remove = vec![];
         for (id, param) in params.into_iter().enumerate() {
             let prev_expr = name2id.insert(param.clone(), AnonExpr::ArgId(id));
             if let Some(prev_expr) = prev_expr {
@@ -70,6 +71,8 @@ impl Def {
                     });
                 }
                 to_restore.push((param, prev_expr));
+            } else {
+                to_remove.push(param);
             }
         }
         let body = body.into_anon(name2id);
@@ -85,6 +88,9 @@ impl Def {
                 return Err(error);
             }
         };
+        for k in to_remove {
+            name2id.remove(&k);
+        }
         for (k, v) in to_restore {
             name2id.insert(k, v);
         }
