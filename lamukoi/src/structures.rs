@@ -280,6 +280,7 @@ pub enum Atom {
     Sc(usize),
     Prim(i64),
     IoRes(i64),
+    World,
 }
 
 pub type Primop<'a> = Box<dyn FnMut(&[i64]) -> Option<Atom> + 'a>;

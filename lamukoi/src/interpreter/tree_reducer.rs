@@ -21,6 +21,20 @@ impl Node {
         }
     }
 
+    pub fn world() -> Self {
+        Self {
+            head: Atom::World,
+            stack: VecDeque::new(),
+        }
+    }
+
+    pub fn prim(i: i64) -> Self {
+        Self {
+            head: Atom::Prim(i),
+            stack: VecDeque::new(),
+        }
+    }
+
     fn substitute(expr: &ScExpr, args: &[Node]) -> Self {
         let mut node = Node { head: Atom::Prim(0), stack: VecDeque::new() };
         node.substitute_into(expr, args);
@@ -93,6 +107,8 @@ impl<'a> ScPrimProgram<'a> {
                                 self.reduce_to_whnf(arg)?;
                                 if let (Atom::Prim(i), true) = (&arg.head, arg.stack.is_empty()) {
                                     prim_arg.push(*i);
+                                } else if let (Atom::World, true) = (&arg.head, arg.stack.is_empty()) {
+                                    // ignore World
                                 } else {
                                     let prim_name = self.defs[i].name.to_string();
                                     let arg = self.whnf_to_string(arg);
@@ -119,7 +135,21 @@ impl<'a> ScPrimProgram<'a> {
                 }
             }
             Atom::Prim(_) => Ok(false),
-            Atom::IoRes(_) => unimplemented!(),
+            Atom::IoRes(i) => {
+                if let Some(f) = root.stack.pop_front() {
+                    root.stack.push_front(Node::world());
+                    root.stack.push_front(Node::prim(i));
+                    let Node { head, stack } = f;
+                    for f_node in stack.into_iter().rev() {
+                        root.stack.push_front(f_node);
+                    }
+                    root.head = head;
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            },
+            Atom::World => Ok(false),
         }
     }
 
@@ -127,7 +157,8 @@ impl<'a> ScPrimProgram<'a> {
         let head = match node.head {
             Atom::Sc(i) => self.defs[i].name.to_string(),
             Atom::Prim(i) => i.to_string(),
-            Atom::IoRes(i) => format!("IORes({})", i),
+            Atom::IoRes(i) => format!("IORes#({})", i),
+            Atom::World => "World#".to_string(),
         };
         let body = " (..)".repeat(node.stack.len());
         format!("{}{}", head, body)
